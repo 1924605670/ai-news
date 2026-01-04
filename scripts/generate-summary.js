@@ -17,14 +17,26 @@ export async function generateSummary(newsData, timestamp) {
   });
 
   // 构建新闻内容摘要
-  let newsContent = "今日新闻标题列表：\n\n";
+  let newsContent = "今日新闻内容：\n\n";
   
   for (const block of newsData) {
     if (block.items.length === 0) continue;
     
     newsContent += `【${block.category}】\n`;
     block.items.slice(0, 5).forEach((item, idx) => {
-      newsContent += `${idx + 1}. ${item.title} (来源: ${item.source})\n`;
+      newsContent += `\n${idx + 1}. ${item.title} (来源: ${item.source})\n`;
+      newsContent += `   链接: ${item.link}\n`;
+      
+      // 如果有实际内容，使用内容；否则只使用标题
+      if (item.content && item.content.trim().length > 50) {
+        // 限制内容长度，避免超出 token 限制
+        const content = item.content.length > 1000 
+          ? item.content.substring(0, 1000) + '...'
+          : item.content;
+        newsContent += `   内容: ${content}\n`;
+      } else {
+        newsContent += `   (仅标题，无法获取详细内容)\n`;
+      }
     });
     newsContent += "\n";
   }

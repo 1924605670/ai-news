@@ -26,13 +26,31 @@ jobs:
       - name: Run daily digest
         env:
           SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        timeout-minutes: 10
         run: node scripts/run.js
 
       - name: Commit daily digest
         run: |
           git config user.name "news-bot"
           git config user.email "bot@users.noreply.github.com"
+          
+          # 获取最新的远程更改
+          git fetch origin main
+          
+          # 尝试合并远程更改（使用 rebase 保持历史干净）
+          git pull origin main --rebase --no-edit || {
+            echo "Rebase failed, trying merge instead..."
+            git pull origin main --no-edit || {
+              echo "Merge also failed, resetting to remote..."
+              git fetch origin main
+              git reset --hard origin/main
+            }
+          }
+          
+          # 添加并提交新的日报文件
           git add daily/
-          git commit -m "chore: daily research & tech digest $(date +'%Y-%m-%d')" || echo "No changes"
-          git push
+          git commit -m "chore: daily research & tech digest $(date +'%Y-%m-%d')" || echo "No changes to commit"
+          
+          # 推送更改
+          git push origin main
 
