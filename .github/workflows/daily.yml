@@ -2,15 +2,20 @@ name: Daily Research & Tech Digest
 
 on:
   schedule:
-    - cron: "0 1 * * *"   # UTC 01:00 (北京时间 09:00)
+    - cron: "0 1 * * *"   # UTC 01:00 (UTC+8 09:00) - 早上9点
+    - cron: "0 13 * * *"  # UTC 13:00 (UTC+8 21:00) - 晚上9点
   workflow_dispatch:
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -18,7 +23,10 @@ jobs:
 
       - run: npm install
 
-      - run: node scripts/run.js
+      - name: Run daily digest
+        env:
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+        run: node scripts/run.js
 
       - name: Commit daily digest
         run: |
