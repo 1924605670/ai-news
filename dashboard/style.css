@@ -75,13 +75,17 @@ body::after {
     display: flex;
     flex-direction: column;
     padding: 24px;
+    height: 100%;
+    overflow: hidden;
+    /* 关键：防止侧边栏本身溢出 */
 }
 
 .logo {
     display: flex;
     align-items: center;
     gap: 15px;
-    margin-bottom: 48px;
+    margin-bottom: 30px;
+    /* 缩小边距 */
     border-bottom: 2px solid var(--accent-color);
     padding-bottom: 10px;
     box-shadow: 0 4px 10px -5px var(--accent-color);

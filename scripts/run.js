@@ -21,7 +21,10 @@ import cron from "node-cron";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-const TIME_WINDOW_MINUTES = parseInt(process.env.NEWS_TIME_WINDOW_MINUTES || '60', 10);
+console.log(`[DEBUG] 脚本文件加载: ${fileURLToPath(import.meta.url)}`);
+console.log(`[DEBUG] 启动命令参数: ${process.argv.join(' ')}`);
+
+const TIME_WINDOW_MINUTES = parseInt(process.env.NEWS_TIME_WINDOW_MINUTES || '5', 10);
 const history = new HistoryManager();
 
 export async function run() {
@@ -354,15 +357,10 @@ cron.schedule('*/15 * * * *', () => {
   console.log(`💓 Scheduler Heartbeat: ${dayjs().tz('Asia/Shanghai').format('HH:mm:ss')} | 状态: 运行中`);
 });
 
-// 如果直接运行脚本 (增加更稳健的判定)
-const isMain = process.argv[1] && (
-  process.argv[1].endsWith('run.js') ||
-  process.argv[1].includes('news-bot-scheduler')
-);
-
-if (isMain) {
+// 修改判定逻辑：只要不是被 import 的（即被作为服务启动时）就尝试运行
+if (process.argv[1]) {
   const isOnce = process.argv.includes('--once');
-  console.log(`🚀 脚本已通过入口加载 (Mode: ${isOnce ? 'Once' : 'Scheduler'})`);
+  console.log(`🚀 激活自动化引擎 (Mode: ${isOnce ? 'Once' : 'Scheduler'})`);
 
   if (isOnce) {
     run().then(() => process.exit(0)).catch(e => {
