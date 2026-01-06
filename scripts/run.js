@@ -12,6 +12,7 @@ import { generateMarkdown } from "./generate-md.js";
 import { generateSummary } from "./generate-summary.js";
 import { sendWeChatNotification } from "./notify.js";
 import { HistoryManager } from "./history-manager.js";
+import { saveAnalysisResult } from "./analysis-storage.js";
 
 // 启用 dayjs 的 timezone 插件
 dayjs.extend(utc);
@@ -180,11 +181,38 @@ export async function run() {
 
       const stockSection = (summaryData.stock_analysis || []).map(s => {
         const icon = s.operation && s.operation.includes('买') ? '🔴' : (s.operation.includes('卖') ? '🟢' : '⚪');
+
+        const tech = s.technical_indicators || {};
+        const basis = s.analysis_basis || {};
+
+        // 技术指标摘要行
+        let techSummary = '';
+        if (tech.rsi || tech.ma5 || tech.main_capital_flow) {
+          const rsi = tech.rsi ? `RSI:${tech.rsi}` : '';
+          const ma5 = tech.ma5 ? `MA5:${tech.ma5}` : '';
+          const capital = tech.main_capital_flow && tech.main_capital_flow !== '-'
+            ? `主力:${tech.main_capital_flow}万` : '';
+          const parts = [rsi, ma5, capital].filter(Boolean);
+          if (parts.length > 0) {
+            techSummary = `   📊 ${parts.join(' | ')}\n`;
+          }
+        }
+
+        // 关键信号
+        const signals = basis.key_signals && basis.key_signals.length > 0
+          ? `   🎯 ${basis.key_signals.join(', ')}\n`
+          : '';
+
+        // 技术分析总结
+        const techAnalysis = basis.technical_summary
+          ? `   🔍 ${basis.technical_summary}`
+          : `   📝 ${s.reason}`;
+
         return `${icon} **${s.stock_name} (${s.stock_code})**\n` +
-          `   💰 现价: ${s.current_price} → 🎯 目标: ${s.target_price}\n` +
-          `   💡 建议: **${s.operation}** (概率 ${s.probability})\n` +
-          `   🔗 关联: ${s.related_news_title || '未指定'}\n` +
-          `   📝 逻辑: ${s.reason}`;
+          `   💰 ${s.current_price} → 🎯 ${s.target_price} | **${s.operation}** (${s.probability})\n` +
+          techSummary +
+          techAnalysis +
+          (signals ? '\n' + signals : '');
       }).join('\n\n');
 
       wechatMessage = `📅 **${today} | 科技新闻日报**\n\n` +
@@ -206,7 +234,17 @@ export async function run() {
         });
       });
       history.save();
-      console.log(`✅ 已更新历史记录，本次新增处理 ${totalItems} 条`);
+      console.log(`✅ 已更新历史记录,本次新增处理 ${totalItems} 条`);
+
+      // 保存分析结果
+      saveAnalysisResult({
+        timestamp,
+        date: today,
+        timeSlot,
+        newsData: results,
+        analysis: summaryData
+      }, timestamp, timeSlot);
+
 
     } else {
       console.log(`⚠️  LLM 摘要生成失败，将继续生成不含摘要的报告`);
@@ -224,7 +262,7 @@ export async function run() {
     fs.mkdirSync(dailyDir, { recursive: true });
   }
 
-  const filename = `${today}-${timeSlot}.md`;
+  const filename = `${beijingTime.format('YYYYMMDD-HHmm')}.md`;
   const out = path.join(dailyDir, filename);
   fs.writeFileSync(out, md, "utf-8");
 

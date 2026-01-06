@@ -6,8 +6,17 @@ import fetch from "node-fetch";
  * @param {string} markdownContent - The markdown text to send
  * @param {string} key - The webhook key (optional, can use env var)
  */
-export async function sendWeChatNotification(markdownContent, key = "211f6bdc-01fd-49e3-bbea-0a9fc263ffce") {
-    const url = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${key}`;
+export async function sendWeChatNotification(markdownContent, key = "") {
+    // 优先使用完整的 WEBHOOK_URL 环境变量
+    let url = process.env.WEBHOOK_URL;
+
+    if (!url && key) {
+        url = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${key}`;
+    } else if (!url && !key) {
+        // 兜底默认 key (如果需要)
+        url = `https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=211f6bdc-01fd-49e3-bbea-0a9fc263ffce`;
+    }
+
 
     if (!markdownContent) {
         console.warn("⚠️ No content to send to WeCom");

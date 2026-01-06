@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { fetchStockData } from "./stock-tool.js";
+import { fetchExtendedStockData } from "./stock-indicators.js";
 
 const SILICONFLOW_API_URL = "https://api.siliconflow.cn/v1";
 
@@ -75,7 +75,26 @@ const FINAL_OUTPUT_FORMAT = `
       "operation": "买入/增持/持有/观望/卖出",
       "related_news_title": "关联的新闻标题(必须是今日已列出的)",
       "reason": "结合新闻与实时行情的分析逻辑",
-      "probability": "80%"
+      "probability": "80%",
+      
+      "technical_indicators": {
+        "volume": "成交量",
+        "rsi": "RSI值",
+        "ma5": "5日均线",
+        "ma10": "10日均线", 
+        "ma20": "20日均线",
+        "price_vs_ma5": "价格与5日线关系(上方/下方)",
+        "macd_signal": "MACD信号(金叉/死叉/多头/空头)",
+        "main_capital_flow": "主力资金净流入(万元)",
+        "capital_flow_rate": "主力净流入占比"
+      },
+      
+      "analysis_basis": {
+        "news_impact": "新闻面影响总结(1-2句话)",
+        "technical_summary": "技术面综合判断(基于RSI、均线、MACD等指标)",
+        "capital_flow_analysis": "资金流向分析",
+        "key_signals": ["关键信号1", "关键信号2", "关键信号3"]
+      }
     }
   ]
 }
@@ -148,22 +167,23 @@ ${CANDIDATE_FORMAT}
       const outputCodes = step1Data.candidates || [];
       console.log(`      Found codes: ${JSON.stringify(outputCodes)}`);
 
-      // === Step 2: 获取实时行情 ===
+      // === Step 2: 获取扩展股票数据(含技术指标) ===
       let stockMarketInfo = "暂无实时行情数据";
       if (outputCodes.length > 0) {
-        console.log(`   📡 [Step 2] 获取实时行情数据...`);
-        const prices = await fetchStockData(outputCodes);
-        if (prices.length > 0) {
-          stockMarketInfo = JSON.stringify(prices.map(p => ({
+        console.log(`   📡 [Step 2] 获取扩展股票数据(含技术指标)...`);
+        const extendedData = await fetchExtendedStockData(outputCodes);
+        if (extendedData.length > 0) {
+          stockMarketInfo = JSON.stringify(extendedData.map(p => ({
             code: p.code,
             name: p.name,
             price: p.current,
             change: p.changePercent,
-            time: p.time
+            time: p.time,
+            technicalIndicators: p.technicalIndicators
           })), null, 2);
-          console.log(`      Fetched prices for: ${prices.map(p => p.name).join(', ')}`);
+          console.log(`      ✅ 获取到${extendedData.length}只股票的完整数据`);
         } else {
-          console.log(`      ⚠️ 未获取到有效行情`);
+          console.log(`      ⚠️ 未获取到有效数据`);
         }
       }
 
@@ -178,7 +198,7 @@ ${CANDIDATE_FORMAT}
 1. **新闻列表**：
 ${newsContent}
 
-2. **实时股票行情** (这是当前时刻的真实交易数据，严禁虚构，请基于此进行分析)：
+2. **股票行情与技术指标数据** (这是当前时刻的真实交易数据和技术指标,严禁虚构,请基于此进行分析)：
 ${stockMarketInfo}
 
 【任务说明】
@@ -187,11 +207,12 @@ ${stockMarketInfo}
    - 必须包含原文链接。
    - 中文摘要，简洁有力。
 
-2. **A股分析 (stock_analysis)**：
-   - 基于上述【实时股票行情】中的数据，选取 3 只重点股票进行分析。
-   - **\`current_price\` 必须直接使用行情数据中的 \`price\`，不要自己编造。**
-   - 结合新闻事件和当前涨跌幅 (\`change\`)，给出操作建议 (\`operation\`) 和目标价 (\`target_price\`)。
-   - 逻辑要严密，体现专业性。
+2. **A股技术分析 (stock_analysis)**：
+   - 基于上述【股票行情与技术指标数据】,选取 3 只重点股票进行深度分析。
+   - **\`current_price\` 必须直接使用数据中的 \`price\`,不要编造。**
+   - **\`technical_indicators\` 必须直接使用数据中的 \`technicalIndicators\` 对象**,包括volume、rsi、ma5/ma10/ma20、price_vs_ma5、macd_signal、main_capital_flow、capital_flow_rate。
+   - **\`analysis_basis\` 必须包含**: news_impact(新闻影响)、technical_summary(技术面综合判断)、capital_flow_analysis(资金流向分析)、key_signals(3个关键交易信号)。
+   - 结合新闻事件、技术指标、资金流向,给出操作建议和目标价。判断依据要具体,避免空泛描述。
 
 请返回 JSON 数据：
 ${FINAL_OUTPUT_FORMAT}

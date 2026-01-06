@@ -5,3 +5,6 @@ node_modules/
 .idea/
 .vscode/
 
+# 分析结果存储目录 (不提交到仓库)
+analysis-results/
+._*

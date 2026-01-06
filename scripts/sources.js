@@ -2,9 +2,8 @@ export const SOURCES = [
   {
     category: "A股 / 财经",
     sources: [
-      { name: "新浪财经-股市", url: "http://rss.sina.com.cn/finance/stock.xml", type: "news" },
-      { name: "新浪财经-国内", url: "http://rss.sina.com.cn/finance/domestic.xml", type: "news" },
-      { name: "界面新闻-财经", url: "https://a.jiemian.com/index.php?m=article&a=rss", type: "news" }
+      { name: "界面新闻-财经", url: "https://a.jiemian.com/index.php?m=article&a=rss", type: "news" },
+      { name: "财联社-电报", url: "https://rsshub.app/cls/telegraph", type: "news" }
     ]
   },
   {
@@ -30,7 +29,10 @@ export const FULLTEXT_WHITELIST = [
   "huxiu.com",
   "ithome.com",
   "sina.com.cn",
-  "jiemian.com"
+  "jiemian.com",
+  "yicai.com",
+  "caixin.com",
+  "eastmoney.com"
 ];
 
 export function canFetchFullText(link) {
