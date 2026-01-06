@@ -297,15 +297,23 @@ export async function run() {
   console.log(`${'='.repeat(60)}\n`);
 }
 
+// 调度状态记录
+export const schedulerStatus = {
+  lastRun: null,
+  isRunning: false
+};
+
 // 定义定时任务逻辑
-function startScheduler() {
+export function startScheduler() {
   console.log('⏰ 定时任务已启动: 每 5 分钟执行一次');
+  schedulerStatus.isRunning = true;
 
   // 首次运行一次
   run().catch(e => console.error('❌ 初次运行失败:', e));
 
   // 设置 Cron 任务: 每 5 分钟执行一次机器人推送
   cron.schedule('*/5 * * * *', async () => {
+    schedulerStatus.lastRun = new Date().toISOString();
     console.log(`\n🔔 定时触发(新闻推送): ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
     try {
       await run();

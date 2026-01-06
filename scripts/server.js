@@ -3,6 +3,8 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { fetchHistoricalData } from './stock-indicators.js';
+import { run, schedulerStatus } from './run.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +49,32 @@ app.get('/api/reports/:filename', (req, res) => {
 });
 
 /**
+ * API: 手动触发分析任务
+ */
+app.post('/api/trigger', async (req, res) => {
+    console.log('🚀 Manual trigger received');
+    try {
+        // 异步执行，不阻塞响应
+        run().catch(e => console.error('Manual run failed:', e));
+        res.json({ message: 'Task triggered successfully' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to trigger task' });
+    }
+});
+
+/**
+ * API: 获取股票 K 线数据
+ */
+app.get('/api/stock/kline/:code', async (req, res) => {
+    try {
+        const data = await fetchHistoricalData(req.params.code, 30);
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to fetch K-line data' });
+    }
+});
+
+/**
  * API: 获取整体统计数据
  */
 app.get('/api/stats', (req, res) => {
@@ -64,7 +92,6 @@ app.get('/api/stats', (req, res) => {
     files.forEach(file => {
         try {
             const data = JSON.parse(fs.readFileSync(path.join(analysisDir, file), 'utf-8'));
-            // 这里暂时只统计数量，具体的“胜负”标签需结合实时价格回测
             totalCount += data.analysis?.stockAnalysis?.length || 0;
             if (data.meta?.date) {
                 uniqueDays.add(data.meta.date);
@@ -76,8 +103,8 @@ app.get('/api/stats', (req, res) => {
         totalReports: files.length,
         totalPredictions: totalCount,
         reportDays: uniqueDays.size,
-        // 胜率以后端回测数据为准，此处返回占位
-        winRate: 0
+        winRate: 0,
+        scheduler: schedulerStatus
     });
 });
 

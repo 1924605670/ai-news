@@ -4,8 +4,36 @@ const API_BASE = `${window.location.origin}/api`;
 document.addEventListener('DOMContentLoaded', () => {
     loadStats();
     loadReportList();
-    initChart();
+    initTriggerButton();
 });
+
+/**
+ * 初始化手动触发按钮
+ */
+function initTriggerButton() {
+    const btn = document.getElementById('btn-trigger');
+    if (!btn) return;
+
+    btn.onclick = async () => {
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '⏳ 正在执行任务...';
+
+        try {
+            const res = await fetch(`${API_BASE}/trigger`, { method: 'POST' });
+            if (res.ok) {
+                alert('任务已在后台启动，请稍后刷新列表查看新报告。');
+            } else {
+                alert('任务启动失败，请检查服务器日志。');
+            }
+        } catch (e) {
+            alert('请求异常: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    };
+}
 
 /**
  * 加载基础统计
@@ -16,7 +44,7 @@ async function loadStats() {
         const data = await res.json();
         document.getElementById('stat-total').textContent = data.totalPredictions || 0;
         document.getElementById('stat-winrate').textContent = (data.winRate || 0) + '%';
-        document.getElementById('stat-days').textContent = data.reportDays || 0; // 修复统计
+        document.getElementById('stat-days').textContent = data.reportDays || 0;
     } catch (e) {
         console.error('加载统计失败', e);
     }
@@ -39,7 +67,6 @@ async function loadReportList() {
 
         files.forEach((file, index) => {
             const li = document.createElement('li');
-            // 从文件名解析显示文本：analysis-20260106-0800.json -> 01/06 08:00
             const displayDate = file.replace('analysis-', '').replace('.json', '');
             const dateStr = displayDate.substring(4, 6) + '/' + displayDate.substring(6, 8);
             const timeStr = displayDate.substring(9, 11) + ':' + displayDate.substring(11, 13);
@@ -48,9 +75,11 @@ async function loadReportList() {
             li.onclick = () => selectReport(file, li);
             listEl.appendChild(li);
 
-            // 默认加载第一个
             if (index === 0) selectReport(file, li);
         });
+
+        // 更新全局图表
+        initChart(files.slice(0, 10));
     } catch (e) {
         console.error('加载列表失败', e);
     }
@@ -60,7 +89,6 @@ async function loadReportList() {
  * 选择并加载报告详情
  */
 async function selectReport(filename, element) {
-    // 切换 active 状态
     document.querySelectorAll('#report-list li').forEach(el => el.classList.remove('active'));
     element.classList.add('active');
 
@@ -81,12 +109,11 @@ function renderReport(data) {
     const titleEl = document.getElementById('report-title');
     const dateEl = document.getElementById('report-date');
 
-    // 格式化具体时间
-    const exactTime = new Date(data.meta.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const timestamp = data.meta.timestamp;
+    const exactTime = new Date(timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     titleEl.innerHTML = `<span class="section-title">⚡ ${data.meta.date} / ${exactTime} 深度研报</span>`;
     dateEl.textContent = data.meta.timeSlot === 'morning' ? '早盘分析' : '晚盘分析';
 
-    // 1. 渲染热点新闻
     const highlights = data.analysis?.newsHighlights || [];
     let newsHtml = '<div class="news-links">';
     highlights.forEach(n => {
@@ -94,7 +121,6 @@ function renderReport(data) {
     });
     newsHtml += '</div>';
 
-    // 2. 渲染股票分析
     const stockAnalysis = data.analysis?.stockAnalysis || [];
 
     if (stockAnalysis.length === 0) {
@@ -103,11 +129,12 @@ function renderReport(data) {
     }
 
     let stocksHtml = '<div style="margin-top: 25px;">';
-    stockAnalysis.forEach(stock => {
+    stockAnalysis.forEach((stock, idx) => {
         const isBuy = stock.operation.includes('买') || stock.operation.includes('增持');
-        const color = isBuy ? '#ff4757' : '#2ed573'; // 红色看多, 绿色看空
+        const color = isBuy ? '#ff4757' : '#2ed573';
         const sentimentIcon = stock.sentiment_impact > 0.3 ? '🔥' : (stock.sentiment_impact < -0.3 ? '❄️' : '⚖️');
         const tech = stock.technical_indicators || {};
+        const canvasId = `chart-${stock.stock_code}-${idx}`;
 
         stocksHtml += `
         <div class="stock-item fadeIn" style="--item-color: ${color}">
@@ -123,20 +150,22 @@ function renderReport(data) {
                 </div>
             </div>
             
-            <div class="tech-grid">
-                <div class="tech-cell"><span class="tech-label">现价 / 目标</span><span class="tech-val">${stock.current_price} → ${stock.target_price}</span></div>
-                <div class="tech-cell"><span class="tech-label">RSI 指标</span><span class="tech-val">${tech.rsi || '-'}</span></div>
-                <div class="tech-cell"><span class="tech-label">KDJ 信号</span><span class="tech-val">${stock.technical_indicators?.kdj_signal || '-'}</span></div>
-                <div class="tech-cell"><span class="tech-label">MA 均线系统</span><span class="tech-val" style="font-size: 0.7rem">${tech.price_vs_ma5 || '-'}</span></div>
-                <div class="tech-cell"><span class="tech-label">资金流向</span><span class="tech-val">${tech.main_capital_flow ? tech.main_capital_flow + '万' : '-'}</span></div>
-                <div class="tech-cell"><span class="tech-label">MACD 状态</span><span class="tech-val">${tech.macd_signal || '-'}</span></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="tech-grid">
+                    <div class="tech-cell"><span class="tech-label">现价 / 目标</span><span class="tech-val">${stock.current_price} → ${stock.target_price}</span></div>
+                    <div class="tech-cell"><span class="tech-label">RSI 指标</span><span class="tech-val">${tech.rsi || '-'}</span></div>
+                    <div class="tech-cell"><span class="tech-label">KDJ 信号</span><span class="tech-val">${tech.kdj_signal || '-'}</span></div>
+                    <div class="tech-cell"><span class="tech-label">均线背离</span><span class="tech-val" style="font-size: 0.7rem">${tech.price_vs_ma5 || '-'}</span></div>
+                    <div class="tech-cell"><span class="tech-label">资金流向</span><span class="tech-val">${tech.main_capital_flow ? tech.main_capital_flow + '万' : '-'}</span></div>
+                    <div class="tech-cell"><span class="tech-label">MACD 状态</span><span class="tech-val">${tech.macd_signal || '-'}</span></div>
+                </div>
+                <div class="stock-chart-box" style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; height: 160px;">
+                    <canvas id="${canvasId}"></canvas>
+                </div>
             </div>
 
             <div class="reason-box">
                 <strong style="color: var(--accent-color)">[分析逻辑]</strong> ${stock.reason}
-                <div style="margin-top: 10px; color: var(--text-secondary); font-size: 0.8rem">
-                    🎯 关键信号: ${stock.analysis_basis?.key_signals?.join(' / ') || '无'}
-                </div>
             </div>
         </div>
         `;
@@ -144,23 +173,68 @@ function renderReport(data) {
     stocksHtml += '</div>';
 
     container.innerHTML = newsHtml + stocksHtml;
+
+    // 渲染个股图表
+    stockAnalysis.forEach((stock, idx) => {
+        renderStockKline(`chart-${stock.stock_code}-${idx}`, stock.stock_code);
+    });
 }
 
 /**
- * 初始化图表
+ * 渲染个股 K 线图
+ */
+async function renderStockKline(canvasId, code) {
+    try {
+        const res = await fetch(`${API_BASE}/stock/kline/${code}`);
+        const data = await res.json();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        if (!data || data.length === 0) return;
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.map(d => d.day.substring(5)),
+                datasets: [{
+                    label: '价格',
+                    data: data.map(d => d.close),
+                    borderColor: '#00f2ff',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#64748b', font: { size: 9 } }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('绘制 K 线失败', e);
+    }
+}
+
+/**
+ * 初始化主图表
  */
 let chartInstance = null;
 function initChart(reportsData = []) {
     const ctx = document.getElementById('accuracyChart').getContext('2d');
-
-    // 如果已有实例则销毁重新创建
     if (chartInstance) chartInstance.destroy();
 
-    // 根据实际载入的报告生成标签
     const labels = reportsData.length > 0
         ? reportsData.map(file => {
-            const d = file.replace('analysis-', '').substring(4, 8);
-            return d.substring(0, 2) + '/' + d.substring(2);
+            const d = file.replace('analysis-', '').substring(4, 13);
+            return d.substring(0, 2) + '/' + d.substring(2, 4) + ' ' + d.substring(5, 7) + ':' + d.substring(7, 9);
         }).reverse()
         : ['-'];
 
@@ -171,7 +245,7 @@ function initChart(reportsData = []) {
         data: {
             labels: labels,
             datasets: [{
-                label: '回测收益率 %',
+                label: '胜率趋势 %',
                 data: dataPoints,
                 borderColor: '#00f2ff',
                 backgroundColor: 'rgba(0, 242, 255, 0.1)',
@@ -184,20 +258,9 @@ function initChart(reportsData = []) {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b' } },
-                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                x: { grid: { display: false }, ticks: { color: '#64748b', font: { size: 9 } } }
             }
         }
     });
-}
-
-// 修改 loadReportList 逻辑以触发图表更新
-const originalLoadReportList = loadReportList;
-loadReportList = async function () {
-    await originalLoadReportList();
-    try {
-        const res = await fetch(`${API_BASE}/reports`);
-        const files = await res.json();
-        initChart(files.slice(0, 10)); // 显示最近10次趋势
-    } catch (e) { }
 }
