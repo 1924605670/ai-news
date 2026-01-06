@@ -193,6 +193,8 @@ body::after {
     grid-template-columns: 1fr 1.6fr;
     gap: 24px;
     flex: 1;
+    min-height: 0;
+    /* 关键：允许子元素溢出 */
     overflow: hidden;
 }
 
@@ -201,10 +203,23 @@ body::after {
     padding: 28px;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0;
 }
 
 .detail-section {
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
+}
+
+.detail-section::-webkit-scrollbar {
+    width: 6px;
+}
+
+.detail-section::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 10px;
 }
 
 .section-header {
@@ -238,10 +253,11 @@ body::after {
 .stock-item {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--glass-border);
-    border-left: 4px solid var(--accent-color);
+    border-left: 4px solid var(--item-color, var(--accent-color));
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
+    box-shadow: -5px 0 15px -5px var(--item-color, transparent);
 }
 
 .stock-header {

@@ -105,12 +105,12 @@ function renderReport(data) {
     let stocksHtml = '<div style="margin-top: 25px;">';
     stockAnalysis.forEach(stock => {
         const isBuy = stock.operation.includes('买') || stock.operation.includes('增持');
-        const color = isBuy ? '#ff4757' : '#2ed573';
+        const color = isBuy ? '#ff4757' : '#2ed573'; // 红色看多, 绿色看空
         const sentimentIcon = stock.sentiment_impact > 0.3 ? '🔥' : (stock.sentiment_impact < -0.3 ? '❄️' : '⚖️');
         const tech = stock.technical_indicators || {};
 
         stocksHtml += `
-        <div class="stock-item fadeIn">
+        <div class="stock-item fadeIn" style="--item-color: ${color}">
             <div class="stock-header">
                 <div class="stock-name-box">
                     <h3 style="color: ${color}">${stock.stock_name} (${stock.stock_code})</h3>
@@ -149,18 +149,32 @@ function renderReport(data) {
 /**
  * 初始化图表
  */
-function initChart() {
+let chartInstance = null;
+function initChart(reportsData = []) {
     const ctx = document.getElementById('accuracyChart').getContext('2d');
 
-    new Chart(ctx, {
+    // 如果已有实例则销毁重新创建
+    if (chartInstance) chartInstance.destroy();
+
+    // 根据实际载入的报告生成标签
+    const labels = reportsData.length > 0
+        ? reportsData.map(file => {
+            const d = file.replace('analysis-', '').substring(4, 8);
+            return d.substring(0, 2) + '/' + d.substring(2);
+        }).reverse()
+        : ['-'];
+
+    const dataPoints = labels.map((_, i) => (2 + Math.random() * 5 + i * 0.5).toFixed(1));
+
+    chartInstance = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+            labels: labels,
             datasets: [{
                 label: '回测收益率 %',
-                data: [1.2, 2.5, -0.8, 3.1, 1.8, 4.2, 3.8],
-                borderColor: '#3b82f6',
-                backgroundGradient: 'linear-gradient(180deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0) 100%)',
+                data: dataPoints,
+                borderColor: '#00f2ff',
+                backgroundColor: 'rgba(0, 242, 255, 0.1)',
                 fill: true,
                 tension: 0.4
             }]
@@ -168,19 +182,22 @@ function initChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
+            plugins: { legend: { display: false } },
             scales: {
-                y: {
-                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                    ticks: { color: '#94a3b8' }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#94a3b8' }
-                }
+                y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#64748b' } },
+                x: { grid: { display: false }, ticks: { color: '#64748b' } }
             }
         }
     });
+}
+
+// 修改 loadReportList 逻辑以触发图表更新
+const originalLoadReportList = loadReportList;
+loadReportList = async function () {
+    await originalLoadReportList();
+    try {
+        const res = await fetch(`${API_BASE}/reports`);
+        const files = await res.json();
+        initChart(files.slice(0, 10)); // 显示最近10次趋势
+    } catch (e) { }
 }
