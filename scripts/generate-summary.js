@@ -63,19 +63,21 @@ const FINAL_OUTPUT_FORMAT = `
       "summary": "一句话核心概要",
       "url": "原始链接",
       "category": "分类",
-      "published_at": "新闻发布时间(格式: HH:mm)"
+      "published_at": "新闻发布时间(格式: HH:mm)",
+      "sentiment_score": 0.8  // 新增加：情绪评分，-1.0 (极差) 到 1.0 (极好)
     }
   ],
   "stock_analysis": [
     {
       "stock_name": "股票名称",
       "stock_code": "股票代码",
-      "current_price": "实际现价(从行情数据获取)",
+      "current_price": "实际现价",
       "target_price": "预测目标价",
       "operation": "买入/增持/持有/观望/卖出",
-      "related_news_title": "关联的新闻标题(必须是今日已列出的)",
+      "related_news_title": "关联的新闻标题",
       "reason": "结合新闻与实时行情的分析逻辑",
       "probability": "80%",
+      "sentiment_impact": 0.7, // 新增加：新闻对该个股的情绪影响分数
       
       "technical_indicators": {
         "volume": "成交量",
@@ -83,15 +85,15 @@ const FINAL_OUTPUT_FORMAT = `
         "ma5": "5日均线",
         "ma10": "10日均线", 
         "ma20": "20日均线",
-        "price_vs_ma5": "价格与5日线关系(上方/下方)",
-        "macd_signal": "MACD信号(金叉/死叉/多头/空头)",
+        "price_vs_ma5": "价格与5日线关系",
+        "macd_signal": "MACD信号",
         "main_capital_flow": "主力资金净流入(万元)",
         "capital_flow_rate": "主力净流入占比"
       },
       
       "analysis_basis": {
-        "news_impact": "新闻面影响总结(1-2句话)",
-        "technical_summary": "技术面综合判断(基于RSI、均线、MACD等指标)",
+        "news_impact": "新闻面影响总结",
+        "technical_summary": "技术面综合判断",
         "capital_flow_analysis": "资金流向分析",
         "key_signals": ["关键信号1", "关键信号2", "关键信号3"]
       }
@@ -206,13 +208,15 @@ ${stockMarketInfo}
    - 挑选 5-8 条最重要的科技/财经新闻。
    - 必须包含原文链接。
    - 中文摘要，简洁有力。
+   - **\`sentiment_score\`**：量化该新闻对市场的正面或负面影响（-1.0 表示重大利空，0 表示中性，1.0 表示重大利好）。
 
 2. **A股技术分析 (stock_analysis)**：
    - 基于上述【股票行情与技术指标数据】,选取 3 只重点股票进行深度分析。
+   - **重要：如果【股票行情与技术指标数据】为"暂无实时行情数据"或数据不完整(如关键价格为N/A),请将 \`stock_analysis\` 数组返回为空 [],不要生成任何预测或示例数据。**
    - **\`current_price\` 必须直接使用数据中的 \`price\`,不要编造。**
+   - **\`sentiment_impact\`**：该特定新闻对该股票的直接情绪推力分数 (-1.0 到 1.0)。
    - **\`technical_indicators\` 必须直接使用数据中的 \`technicalIndicators\` 对象**,包括volume、rsi、ma5/ma10/ma20、price_vs_ma5、macd_signal、main_capital_flow、capital_flow_rate。
    - **\`analysis_basis\` 必须包含**: news_impact(新闻影响)、technical_summary(技术面综合判断)、capital_flow_analysis(资金流向分析)、key_signals(3个关键交易信号)。
-   - 结合新闻事件、技术指标、资金流向,给出操作建议和目标价。判断依据要具体,避免空泛描述。
 
 请返回 JSON 数据：
 ${FINAL_OUTPUT_FORMAT}

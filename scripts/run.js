@@ -175,6 +175,15 @@ export async function run() {
     summaryData = await generateSummary(results, timestamp, 5);
 
     if (summaryData) {
+      // 过滤掉包含 N/A 的无效股票分析
+      if (summaryData.stock_analysis) {
+        summaryData.stock_analysis = summaryData.stock_analysis.filter(s =>
+          s.current_price !== 'N/A' &&
+          s.target_price !== 'N/A' &&
+          s.stock_name !== '示例股票'
+        );
+      }
+
       markdownSummary = summaryData.summary_markdown || "摘要生成失败 (JSON format error)";
 
       const newsSection = (summaryData.news_highlights || []).map(n => {
@@ -200,7 +209,8 @@ export async function run() {
           }
         }
 
-        // 关键信号
+        // 情绪与信号
+        const sentimentIcon = s.sentiment_impact > 0.3 ? '🔥' : (s.sentiment_impact < -0.3 ? '❄️' : '⚖️');
         const signals = basis.key_signals && basis.key_signals.length > 0
           ? `   🎯 ${basis.key_signals.join(', ')}\n`
           : '';
@@ -212,6 +222,7 @@ export async function run() {
 
         return `${icon} **${s.stock_name} (${s.stock_code})**\n` +
           `   💰 ${s.current_price} → 🎯 ${s.target_price} | **${s.operation}** (${s.probability})\n` +
+          `   🎭 情绪推力: ${sentimentIcon} ${s.sentiment_impact}\n` +
           techSummary +
           techAnalysis +
           (signals ? '\n' + signals : '');

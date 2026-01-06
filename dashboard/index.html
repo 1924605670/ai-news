@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News-Bot AI 投研看板</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="dark-theme">
+    <div class="glass-container">
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="icon">🤖</span>
+                <h1>News-Bot</h1>
+            </div>
+            <nav id="report-list">
+                <div class="nav-header">历史报告</div>
+                <ul>
+                    <!-- 加载历史文件列表 -->
+                    <li class="loading">正在加载...</li>
+                </ul>
+            </nav>
+        </aside>
+
+        <main class="content">
+            <header class="top-bar">
+                <div class="stat-cards">
+                    <div class="card glass">
+                        <span class="label">总预测数</span>
+                        <span class="value" id="stat-total">-</span>
+                    </div>
+                    <div class="card glass">
+                        <span class="label">平均胜率</span>
+                        <span class="value" id="stat-winrate">-</span>
+                    </div>
+                    <div class="card glass">
+                        <span class="label">报告天数</span>
+                        <span class="value" id="stat-days">-</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="dashboard-grid">
+                <div class="chart-section glass">
+                    <h2>胜率回归趋势</h2>
+                    <canvas id="accuracyChart"></canvas>
+                </div>
+
+                <div class="detail-section glass">
+                    <div class="section-header">
+                        <h2 id="report-title">选择一份报告查看详情</h2>
+                        <span class="badge" id="report-date">YYYY-MM-DD</span>
+                    </div>
+                    
+                    <div id="report-content">
+                        <div class="empty-state">
+                            <p>请在左侧列表中选择一个时段的报告</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>

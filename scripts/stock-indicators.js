@@ -98,6 +98,51 @@ function calculateRSI(prices, period = 14) {
 }
 
 /**
+ * 计算KDJ指标
+ * @param {Array} data - K线数据数组 {high, low, close}
+ * @param {number} n - 周期,默认9
+ * @param {number} m1 - M1,默认3
+ * @param {number} m2 - M2,默认3
+ * @returns {Object} KDJ数据 {k, d, j, signal}
+ */
+function calculateKDJ(data, n = 9, m1 = 3, m2 = 3) {
+    if (data.length < n) return { k: null, d: null, j: null, signal: '数据不足' };
+
+    let k = 50, d = 50;
+    const results = [];
+
+    for (let i = 0; i < data.length; i++) {
+        if (i < n - 1) continue;
+
+        const recentData = data.slice(i - n + 1, i + 1);
+        const hn = Math.max(...recentData.map(d => d.high));
+        const ln = Math.min(...recentData.map(d => d.low));
+        const cn = data[i].close;
+
+        const rsv = hn === ln ? 50 : ((cn - ln) / (hn - ln)) * 100;
+        k = (rsv + (m1 - 1) * k) / m1;
+        d = (k + (m2 - 1) * d) / m2;
+        const j = 3 * k - 2 * d;
+
+        results.push({ k, d, j });
+    }
+
+    const last = results[results.length - 1];
+    let signal = '中性';
+    if (last.k > last.d && results[results.length - 2]?.k <= results[results.length - 2]?.d) signal = '金叉';
+    if (last.k < last.d && results[results.length - 2]?.k >= results[results.length - 2]?.d) signal = '死叉';
+    if (last.j > 100) signal = '超买';
+    if (last.j < 0) signal = '超卖';
+
+    return {
+        k: last.k.toFixed(2),
+        d: last.d.toFixed(2),
+        j: last.j.toFixed(2),
+        signal
+    };
+}
+
+/**
  * 计算MACD指标
  * @param {Array} prices - 收盘价数组
  * @returns {Object} MACD数据 {dif, dea, macd, signal}
@@ -275,17 +320,17 @@ export async function fetchExtendedStockData(codes) {
             // 计算RSI
             indicators.rsi = calculateRSI(closePrices, 14);
 
-            // 计算MACD
-            const macdData = calculateMACD(closePrices);
-            indicators.macd = macdData.macd;
-            indicators.macdSignal = macdData.signal;
+            // 计算KDJ
+            const kdjData = calculateKDJ(histData);
+            indicators.kdj = kdjData;
+            indicators.kdjSignal = kdjData.signal;
 
             // 分析价格与均线关系
             const currentPrice = parseFloat(stock.current);
             indicators.priceVsMA5 = analyzePriceVsMA(currentPrice, parseFloat(indicators.ma5));
             indicators.priceVsMA10 = analyzePriceVsMA(currentPrice, parseFloat(indicators.ma10));
 
-            console.log(`         ✓ 技术指标: RSI=${indicators.rsi}, MA5=${indicators.ma5}, MACD=${indicators.macdSignal}`);
+            console.log(`         ✓ 技术指标: RSI=${indicators.rsi}, MA5=${indicators.ma5}, MACD=${indicators.macdSignal}, KDJ=${indicators.kdjSignal}`);
         } else {
             console.log(`         ⚠️ 历史数据不足,跳过技术指标计算`);
         }
