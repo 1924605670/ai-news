@@ -27,7 +27,7 @@ body {
         linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
     background-size: 100% 100%, 100% 4px, 100% 100%;
     color: var(--text-primary);
-    overflow: hidden;
+    margin: 0;
     height: 100vh;
 }
 
@@ -105,11 +105,19 @@ body::after {
     opacity: 0.8;
 }
 
+#report-list {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    /* 关键：允许 flex 子项缩小 */
+}
+
 #report-list ul {
     list-style: none;
     overflow-y: auto;
     flex: 1;
-    padding-right: 5px;
+    padding-right: 8px;
 }
 
 #report-list ul::-webkit-scrollbar {

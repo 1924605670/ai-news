@@ -349,9 +349,20 @@ export function startScheduler() {
   });
 }
 
-// 如果直接运行脚本
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// 存活心跳 (每 15 分钟打印一次，确保日志不空)
+cron.schedule('*/15 * * * *', () => {
+  console.log(`💓 Scheduler Heartbeat: ${dayjs().tz('Asia/Shanghai').format('HH:mm:ss')} | 状态: 运行中`);
+});
+
+// 如果直接运行脚本 (增加更稳健的判定)
+const isMain = process.argv[1] && (
+  process.argv[1].endsWith('run.js') ||
+  process.argv[1].includes('news-bot-scheduler')
+);
+
+if (isMain) {
   const isOnce = process.argv.includes('--once');
+  console.log(`🚀 脚本已通过入口加载 (Mode: ${isOnce ? 'Once' : 'Scheduler'})`);
 
   if (isOnce) {
     run().then(() => process.exit(0)).catch(e => {
