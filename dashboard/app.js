@@ -45,6 +45,15 @@ async function loadStats() {
         document.getElementById('stat-total').textContent = data.totalPredictions || 0;
         document.getElementById('stat-winrate').textContent = (data.winRate || 0) + '%';
         document.getElementById('stat-days').textContent = data.reportDays || 0;
+
+        // 显示最近运行时间
+        if (data.scheduler?.lastRun) {
+            const lastRun = new Date(data.scheduler.lastRun).toLocaleTimeString('zh-CN');
+            const statSources = document.getElementById('stat-sources');
+            if (statSources) {
+                statSources.innerHTML = `<span style="font-size: 0.9rem; color: #00f2ff">${lastRun}</span><br><span style="font-size: 0.6rem; opacity: 0.6">最近同步</span>`;
+            }
+        }
     } catch (e) {
         console.error('加载统计失败', e);
     }
@@ -142,7 +151,7 @@ function renderReport(data) {
                 <div class="stock-name-box">
                     <h3 style="color: ${color}">${stock.stock_name} (${stock.stock_code})</h3>
                     <div style="font-size: 0.75rem; color: var(--text-secondary)">
-                        🎭 情绪推力: ${sentimentIcon} ${stock.sentiment_impact} | 关联新闻: ${stock.related_news_title}
+                        🎭 情绪推力: ${sentimentIcon} ${stock.sentiment_impact} | 关键信号: ${stock.analysis_basis?.key_signals?.join(' / ') || '形态突破'}
                     </div>
                 </div>
                 <div class="stock-op-tag" style="background: ${color}22; color: ${color}; border: 1px solid ${color}44">
@@ -150,22 +159,29 @@ function renderReport(data) {
                 </div>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px;">
                 <div class="tech-grid">
                     <div class="tech-cell"><span class="tech-label">现价 / 目标</span><span class="tech-val">${stock.current_price} → ${stock.target_price}</span></div>
                     <div class="tech-cell"><span class="tech-label">RSI 指标</span><span class="tech-val">${tech.rsi || '-'}</span></div>
                     <div class="tech-cell"><span class="tech-label">KDJ 信号</span><span class="tech-val">${tech.kdj_signal || '-'}</span></div>
                     <div class="tech-cell"><span class="tech-label">均线背离</span><span class="tech-val" style="font-size: 0.7rem">${tech.price_vs_ma5 || '-'}</span></div>
-                    <div class="tech-cell"><span class="tech-label">资金流向</span><span class="tech-val">${tech.main_capital_flow ? tech.main_capital_flow + '万' : '-'}</span></div>
+                    <div class="tech-cell"><span class="tech-label">成交量(24H)</span><span class="tech-val">${tech.volume ? (tech.volume / 10000).toFixed(1) + '万' : '-'}</span></div>
                     <div class="tech-cell"><span class="tech-label">MACD 状态</span><span class="tech-val">${tech.macd_signal || '-'}</span></div>
                 </div>
-                <div class="stock-chart-box" style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px; height: 160px;">
+                <div class="stock-chart-box" style="position: relative; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; border: 1px solid var(--glass-border)">
+                    <div class="chart-controls" style="position: absolute; top: 10px; right: 15px; z-index: 10; display: flex; gap: 5px;">
+                        <button class="btn-sm active" onclick="updateStockKline('${canvasId}', '${stock.stock_code}', '1d', this)">1D</button>
+                        <button class="btn-sm" onclick="updateStockKline('${canvasId}', '${stock.stock_code}', '5d', this)">5D</button>
+                    </div>
                     <canvas id="${canvasId}"></canvas>
                 </div>
             </div>
 
             <div class="reason-box">
-                <strong style="color: var(--accent-color)">[分析逻辑]</strong> ${stock.reason}
+                <strong style="color: var(--accent-color)">[AI 决策逻辑]</strong> ${stock.reason}
+                <div style="margin-top: 10px; color: var(--text-secondary); font-size: 0.8rem">
+                    📰 关联新闻: ${stock.related_news_title}
+                </div>
             </div>
         </div>
         `;
@@ -174,46 +190,82 @@ function renderReport(data) {
 
     container.innerHTML = newsHtml + stocksHtml;
 
-    // 渲染个股图表
+    // 默认渲染 1D K 线
     stockAnalysis.forEach((stock, idx) => {
-        renderStockKline(`chart-${stock.stock_code}-${idx}`, stock.stock_code);
+        renderStockKline(`chart-${stock.stock_code}-${idx}`, stock.stock_code, '1d');
     });
 }
 
 /**
- * 渲染个股 K 线图
+ * 切换 K 线周期
  */
-async function renderStockKline(canvasId, code) {
+window.updateStockKline = (canvasId, code, period, btn) => {
+    // 切换按钮状态
+    const parent = btn.parentElement;
+    parent.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    renderStockKline(canvasId, code, period);
+};
+
+const chartInstances = {};
+
+/**
+ * 渲染个股双轴图表 (价格折线 + 成交量柱状)
+ */
+async function renderStockKline(canvasId, code, period = '1d') {
     try {
-        const res = await fetch(`${API_BASE}/stock/kline/${code}`);
+        const res = await fetch(`${API_BASE}/stock/kline/${code}?period=${period}`);
         const data = await res.json();
         const ctx = document.getElementById(canvasId).getContext('2d');
 
         if (!data || data.length === 0) return;
 
-        new Chart(ctx, {
-            type: 'line',
+        // 销毁旧实例
+        if (chartInstances[canvasId]) {
+            chartInstances[canvasId].destroy();
+        }
+
+        chartInstances[canvasId] = new Chart(ctx, {
             data: {
-                labels: data.map(d => d.day.substring(5)),
-                datasets: [{
-                    label: '价格',
-                    data: data.map(d => d.close),
-                    borderColor: '#00f2ff',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    tension: 0.1,
-                    fill: false
-                }]
+                labels: data.map(d => period === '1d' ? d.day.split(' ')[1].substring(0, 5) : d.day.substring(5, 10)),
+                datasets: [
+                    {
+                        type: 'line',
+                        label: '价格',
+                        data: data.map(d => d.close),
+                        borderColor: '#00f2ff',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.1,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'bar',
+                        label: '成交量',
+                        data: data.map(d => d.volume),
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                        barPercentage: 0.6,
+                        yAxisID: 'y1'
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: { intersect: false, mode: 'index' },
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { display: false },
+                    x: { ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0 } },
                     y: {
-                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        position: 'left',
+                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
                         ticks: { color: '#64748b', font: { size: 9 } }
+                    },
+                    y1: {
+                        position: 'right',
+                        display: false,
+                        grid: { display: false }
                     }
                 }
             }

@@ -12,19 +12,20 @@ function sleep(ms) {
  * 获取股票历史K线数据(新浪财经接口)
  * @param {string} code - 股票代码
  * @param {number} days - 获取天数,默认60天
+ * @param {number} scale - 采样频率,默认240(单位:分钟), 5表示5分钟, 60表示1小时, 240表示日线
  * @returns {Promise<Array>} K线数据数组
  */
-export async function fetchHistoricalData(code, days = 60) {
+export async function fetchHistoricalData(code, days = 60, scale = 240) {
     try {
-        // 构造股票代码前缀
+        // ... construct prefix ...
         let prefix = 'sh';
         if (code.startsWith('0') || code.startsWith('3')) prefix = 'sz';
         if (code.startsWith('4') || code.startsWith('8')) prefix = 'bj';
 
         const symbol = `${prefix}${code}`;
 
-        // 使用新浪财经历史数据接口
-        const url = `https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20_${symbol}_${days}_data=/CN_MarketDataService.getKLineData?symbol=${symbol}&scale=240&datalen=${days}`;
+        // 使用新浪财经历史数据接口，支持 scale 参数
+        const url = `https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20_${symbol}_${days}_${scale}_data=/CN_MarketDataService.getKLineData?symbol=${symbol}&scale=${scale}&datalen=${days}`;
 
         const response = await fetch(url, {
             headers: {

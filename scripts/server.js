@@ -67,7 +67,19 @@ app.post('/api/trigger', async (req, res) => {
  */
 app.get('/api/stock/kline/:code', async (req, res) => {
     try {
-        const data = await fetchHistoricalData(req.params.code, 30);
+        const { period } = req.query;
+        let scale = 240; // 默认日线
+        let datalen = 30;
+
+        if (period === '1d') {
+            scale = 5;
+            datalen = 48; // A 股一天 4 小时交易，48 个 5 分钟
+        } else if (period === '5d') {
+            scale = 60;
+            datalen = 20; // 5 天交易时间总和映射到 60 分钟线
+        }
+
+        const data = await fetchHistoricalData(req.params.code, datalen, scale);
         res.json(data);
     } catch (e) {
         res.status(500).json({ error: 'Failed to fetch K-line data' });
