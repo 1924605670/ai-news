@@ -13,6 +13,7 @@ import { generateSummary } from "./generate-summary.js";
 import { sendWeChatNotification } from "./notify.js";
 import { HistoryManager } from "./history-manager.js";
 import { saveAnalysisResult } from "./analysis-storage.js";
+import { runBacktest } from "./backtest-tracker.js";
 import cron from "node-cron";
 
 
@@ -303,14 +304,23 @@ function startScheduler() {
   // 首次运行一次
   run().catch(e => console.error('❌ 初次运行失败:', e));
 
-  // 设置 Cron 任务: 每 5 分钟执行一次
-  // 分别是: 秒, 分, 时, 日, 月, 星期
+  // 设置 Cron 任务: 每 5 分钟执行一次机器人推送
   cron.schedule('*/5 * * * *', async () => {
-    console.log(`\n🔔 定时触发: ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
+    console.log(`\n🔔 定时触发(新闻推送): ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
     try {
       await run();
     } catch (e) {
       console.error('❌ 定时任务执行失败:', e);
+    }
+  });
+
+  // 设置 Cron 任务: 每天下午 18:30 执行回测 (收盘后)
+  cron.schedule('30 18 * * *', async () => {
+    console.log(`\n📊 定时触发(每日回测): ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
+    try {
+      await runBacktest();
+    } catch (e) {
+      console.error('❌ 回测任务执行失败:', e);
     }
   });
 }

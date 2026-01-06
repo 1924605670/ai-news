@@ -6,11 +6,13 @@ import { fetchStockData } from "./stock-tool.js";
 const ANALYSIS_DIR = path.join(process.cwd(), "analysis-results");
 
 /**
- * 回测跟踪器
+ * 执行回测
  * 扫描历史预测并根据当前价格核对准确度
  */
-async function runBacktest() {
+export async function runBacktest() {
+    console.log('\n' + '='.repeat(60));
     console.log('--- 🚀 开始执行预测回测跟踪 ---');
+    console.log('='.repeat(60));
 
     if (!fs.existsSync(ANALYSIS_DIR)) {
         console.log('⚠️ 未找到分析结果目录，跳过回测。');
@@ -106,7 +108,11 @@ async function runBacktest() {
         const totalAccuracy = ((totalWin / totalCount) * 100).toFixed(2);
         console.log(`\n📈 整体回测胜率: ${totalAccuracy}% (${totalWin}/${totalCount})`);
     }
+    console.log('='.repeat(60) + '\n');
 }
 
-// 执行
-runBacktest().catch(console.error);
+// 如果直接运行脚本
+import { fileURLToPath } from 'url';
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+    runBacktest().catch(console.error);
+}

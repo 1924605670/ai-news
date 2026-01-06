@@ -6,7 +6,10 @@
   "main": "scripts/run.js",
   "scripts": {
     "start": "node scripts/run.js",
-    "dashboard": "node scripts/server.js"
+    "dashboard": "node scripts/server.js",
+    "start:all": "npx pm2 start ecosystem.config.cjs",
+    "stop:all": "npx pm2 stop ecosystem.config.cjs",
+    "status": "npx pm2 status"
   },
   "keywords": [
     "rss",
@@ -26,5 +29,8 @@
     "node-fetch": "^3.3.2",
     "openai": "^4.20.0",
     "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "pm2": "^6.0.14"
   }
 }
