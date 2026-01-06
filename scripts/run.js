@@ -300,6 +300,7 @@ export async function run() {
 // 调度状态记录
 export const schedulerStatus = {
   lastRun: null,
+  nextRun: null,
   isRunning: false
 };
 
@@ -308,13 +309,28 @@ export function startScheduler() {
   console.log('⏰ 定时任务已启动: 每 5 分钟执行一次');
   schedulerStatus.isRunning = true;
 
+  // 计算后续第一次运行的具体时间 (当前时间的下个5分钟整点)
+  const calculateNext = () => {
+    const now = dayjs();
+    const minutes = now.minute();
+    const nextFive = Math.ceil((minutes + 0.1) / 5) * 5;
+    return now.minute(nextFive).second(0).toISOString();
+  };
+
+  schedulerStatus.nextRun = calculateNext();
+
   // 首次运行一次
   run().catch(e => console.error('❌ 初次运行失败:', e));
 
   // 设置 Cron 任务: 每 5 分钟执行一次机器人推送
   cron.schedule('*/5 * * * *', async () => {
     schedulerStatus.lastRun = new Date().toISOString();
+    // 任务执行时，提前计算下一次
+    schedulerStatus.nextRun = dayjs().add(5, 'minute').minute(Math.floor(dayjs().add(5, 'minute').minute() / 5) * 5).second(0).toISOString();
+
     console.log(`\n🔔 定时触发(新闻推送): ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
+    console.log(`⏭️ 下次执行预计: ${dayjs(schedulerStatus.nextRun).format('HH:mm:ss')}`);
+
     try {
       await run();
     } catch (e) {

@@ -46,12 +46,20 @@ async function loadStats() {
         document.getElementById('stat-winrate').textContent = (data.winRate || 0) + '%';
         document.getElementById('stat-days').textContent = data.reportDays || 0;
 
-        // 显示最近运行时间
-        if (data.scheduler?.lastRun) {
-            const lastRun = new Date(data.scheduler.lastRun).toLocaleTimeString('zh-CN');
+        // 显示运行时间状态
+        if (data.scheduler) {
             const statSources = document.getElementById('stat-sources');
             if (statSources) {
-                statSources.innerHTML = `<span style="font-size: 0.9rem; color: #00f2ff">${lastRun}</span><br><span style="font-size: 0.6rem; opacity: 0.6">最近同步</span>`;
+                let html = '';
+                if (data.scheduler.lastRun) {
+                    const lastRun = new Date(data.scheduler.lastRun).toLocaleTimeString('zh-CN');
+                    html += `<div style="font-size: 0.85rem; color: #00f2ff">${lastRun} <span style="font-size: 0.6rem; opacity: 0.6">上次同步</span></div>`;
+                }
+                if (data.scheduler.nextRun) {
+                    const nextRun = new Date(data.scheduler.nextRun).toLocaleTimeString('zh-CN');
+                    html += `<div style="font-size: 0.85rem; color: #ff9f43">${nextRun} <span style="font-size: 0.6rem; opacity: 0.6">下次预计</span></div>`;
+                }
+                statSources.innerHTML = html || '--';
             }
         }
     } catch (e) {
