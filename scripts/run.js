@@ -13,6 +13,8 @@ import { generateSummary } from "./generate-summary.js";
 import { sendWeChatNotification } from "./notify.js";
 import { HistoryManager } from "./history-manager.js";
 import { saveAnalysisResult } from "./analysis-storage.js";
+import cron from "node-cron";
+
 
 // 启用 dayjs 的 timezone 插件
 dayjs.extend(utc);
@@ -283,10 +285,36 @@ export async function run() {
   console.log(`${'='.repeat(60)}\n`);
 }
 
-// 如果直接运行脚本
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  run().then(() => process.exit(0)).catch(e => {
-    console.error(e);
-    process.exit(1);
+// 定义定时任务逻辑
+function startScheduler() {
+  console.log('⏰ 定时任务已启动: 每 5 分钟执行一次');
+
+  // 首次运行一次
+  run().catch(e => console.error('❌ 初次运行失败:', e));
+
+  // 设置 Cron 任务: 每 5 分钟执行一次
+  // 分别是: 秒, 分, 时, 日, 月, 星期
+  cron.schedule('*/5 * * * *', async () => {
+    console.log(`\n🔔 定时触发: ${dayjs().tz('Asia/Shanghai').format('YYYY-MM-DD HH:mm:ss')}`);
+    try {
+      await run();
+    } catch (e) {
+      console.error('❌ 定时任务执行失败:', e);
+    }
   });
 }
+
+// 如果直接运行脚本
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const isOnce = process.argv.includes('--once');
+
+  if (isOnce) {
+    run().then(() => process.exit(0)).catch(e => {
+      console.error(e);
+      process.exit(1);
+    });
+  } else {
+    startScheduler();
+  }
+}
+
