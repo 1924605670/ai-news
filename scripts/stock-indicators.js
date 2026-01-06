@@ -14,7 +14,7 @@ function sleep(ms) {
  * @param {number} days - 获取天数,默认60天
  * @returns {Promise<Array>} K线数据数组
  */
-async function fetchHistoricalData(code, days = 60) {
+export async function fetchHistoricalData(code, days = 60) {
     try {
         // 构造股票代码前缀
         let prefix = 'sh';
