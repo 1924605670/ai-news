@@ -59,18 +59,23 @@ app.get('/api/stats', (req, res) => {
 
     let totalWin = 0;
     let totalCount = 0;
+    const uniqueDays = new Set();
 
     files.forEach(file => {
         try {
             const data = JSON.parse(fs.readFileSync(path.join(analysisDir, file), 'utf-8'));
             // 这里暂时只统计数量，具体的“胜负”标签需结合实时价格回测
             totalCount += data.analysis?.stockAnalysis?.length || 0;
+            if (data.meta?.date) {
+                uniqueDays.add(data.meta.date);
+            }
         } catch (e) { }
     });
 
     res.json({
         totalReports: files.length,
         totalPredictions: totalCount,
+        reportDays: uniqueDays.size,
         // 胜率以后端回测数据为准，此处返回占位
         winRate: 0
     });

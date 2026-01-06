@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body class="dark-theme">
     <div class="glass-container">
         <aside class="sidebar">
@@ -35,6 +37,10 @@
                         <span class="value" id="stat-winrate">-</span>
                     </div>
                     <div class="card glass">
+                        <span class="label">覆盖来源</span>
+                        <span class="value" id="stat-sources">12+</span>
+                    </div>
+                    <div class="card glass">
                         <span class="label">报告天数</span>
                         <span class="value" id="stat-days">-</span>
                     </div>
@@ -52,7 +58,7 @@
                         <h2 id="report-title">选择一份报告查看详情</h2>
                         <span class="badge" id="report-date">YYYY-MM-DD</span>
                     </div>
-                    
+
                     <div id="report-content">
                         <div class="empty-state">
                             <p>请在左侧列表中选择一个时段的报告</p>
@@ -64,4 +70,5 @@
     </div>
     <script src="app.js"></script>
 </body>
+
 </html>

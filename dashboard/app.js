@@ -16,7 +16,7 @@ async function loadStats() {
         const data = await res.json();
         document.getElementById('stat-total').textContent = data.totalPredictions || 0;
         document.getElementById('stat-winrate').textContent = (data.winRate || 0) + '%';
-        document.getElementById('stat-days').textContent = data.totalReports || 0;
+        document.getElementById('stat-days').textContent = data.reportDays || 0; // 修复统计
     } catch (e) {
         console.error('加载统计失败', e);
     }
@@ -81,59 +81,69 @@ function renderReport(data) {
     const titleEl = document.getElementById('report-title');
     const dateEl = document.getElementById('report-date');
 
-    titleEl.textContent = `${data.meta.date} ${data.meta.timeSlot === 'morning' ? '早盘' : '晚盘'}分析`;
-    dateEl.textContent = data.meta.timestamp.split('T')[0];
+    // 格式化具体时间
+    const exactTime = new Date(data.meta.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    titleEl.innerHTML = `<span class="section-title">⚡ ${data.meta.date} / ${exactTime} 深度研报</span>`;
+    dateEl.textContent = data.meta.timeSlot === 'morning' ? '早盘分析' : '晚盘分析';
 
+    // 1. 渲染热点新闻
+    const highlights = data.analysis?.newsHighlights || [];
+    let newsHtml = '<div class="news-links">';
+    highlights.forEach(n => {
+        newsHtml += `<a href="${n.url}" target="_blank" class="news-link">📰 ${n.title}</a>`;
+    });
+    newsHtml += '</div>';
+
+    // 2. 渲染股票分析
     const stockAnalysis = data.analysis?.stockAnalysis || [];
 
     if (stockAnalysis.length === 0) {
-        container.innerHTML = '<div class="empty-state">此报告无股票分析数据</div>';
+        container.innerHTML = newsHtml + '<div class="empty-state">此报告无股票分析数据</div>';
         return;
     }
 
-    let html = '';
+    let stocksHtml = '<div style="margin-top: 25px;">';
     stockAnalysis.forEach(stock => {
         const isBuy = stock.operation.includes('买') || stock.operation.includes('增持');
-        const opClass = isBuy ? 'op-buy' : 'op-sell';
+        const color = isBuy ? '#ff4757' : '#2ed573';
         const sentimentIcon = stock.sentiment_impact > 0.3 ? '🔥' : (stock.sentiment_impact < -0.3 ? '❄️' : '⚖️');
+        const tech = stock.technical_indicators || {};
 
-        html += `
+        stocksHtml += `
         <div class="stock-item fadeIn">
             <div class="stock-header">
-                <div>
-                    <span class="stock-name">${stock.stock_name}</span>
-                    <span class="stock-code" style="color: #94a3b8; font-size: 0.8rem; margin-left: 8px;">${stock.stock_code}</span>
+                <div class="stock-name-box">
+                    <h3 style="color: ${color}">${stock.stock_name} (${stock.stock_code})</h3>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary)">
+                        🎭 情绪推力: ${sentimentIcon} ${stock.sentiment_impact} | 关联新闻: ${stock.related_news_title}
+                    </div>
                 </div>
-                <span class="stock-op ${opClass}">${stock.operation} (${stock.probability})</span>
+                <div class="stock-op-tag" style="background: ${color}22; color: ${color}; border: 1px solid ${color}44">
+                    ${stock.operation} (${stock.probability})
+                </div>
             </div>
             
-            <div class="stock-grid">
-                <div class="data-point">
-                    <span class="dp-label">现价</span>
-                    <span class="dp-value">${stock.current_price}</span>
-                </div>
-                <div class="data-point">
-                    <span class="dp-label">目标价</span>
-                    <span class="dp-value" style="color: #60a5fa; font-weight: 600;">${stock.target_price}</span>
-                </div>
-                <div class="data-point">
-                    <span class="dp-label">情绪推力</span>
-                    <span class="dp-value">${sentimentIcon} ${stock.sentiment_impact}</span>
-                </div>
-                <div class="data-point">
-                    <span class="dp-label">技术指标</span>
-                    <span class="dp-value" style="font-size: 0.7rem;">RSI:${stock.technical_indicators?.rsi || '-'} | MACD:${stock.technical_indicators?.macd_signal || '-'}</span>
-                </div>
+            <div class="tech-grid">
+                <div class="tech-cell"><span class="tech-label">现价 / 目标</span><span class="tech-val">${stock.current_price} → ${stock.target_price}</span></div>
+                <div class="tech-cell"><span class="tech-label">RSI 指标</span><span class="tech-val">${tech.rsi || '-'}</span></div>
+                <div class="tech-cell"><span class="tech-label">KDJ 信号</span><span class="tech-val">${stock.technical_indicators?.kdj_signal || '-'}</span></div>
+                <div class="tech-cell"><span class="tech-label">MA 均线系统</span><span class="tech-val" style="font-size: 0.7rem">${tech.price_vs_ma5 || '-'}</span></div>
+                <div class="tech-cell"><span class="tech-label">资金流向</span><span class="tech-val">${tech.main_capital_flow ? tech.main_capital_flow + '万' : '-'}</span></div>
+                <div class="tech-cell"><span class="tech-label">MACD 状态</span><span class="tech-val">${tech.macd_signal || '-'}</span></div>
             </div>
 
             <div class="reason-box">
-                <strong>分析依据：</strong>${stock.reason}
+                <strong style="color: var(--accent-color)">[分析逻辑]</strong> ${stock.reason}
+                <div style="margin-top: 10px; color: var(--text-secondary); font-size: 0.8rem">
+                    🎯 关键信号: ${stock.analysis_basis?.key_signals?.join(' / ') || '无'}
+                </div>
             </div>
         </div>
         `;
     });
+    stocksHtml += '</div>';
 
-    container.innerHTML = html;
+    container.innerHTML = newsHtml + stocksHtml;
 }
 
 /**
